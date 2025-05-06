@@ -1,5 +1,10 @@
 usr/bin/gamemoderun usr/games/
+usr/bin/gamemodelist usr/games/
 usr/bin/gamemode-simulate-game usr/games/
 usr/share/man/man1/gamemoderun.1
+usr/share/man/man1/gamemodelist.1
 usr/share/man/man1/gamemode-simulate-game.1
 usr/share/metainfo/io.github.feralinteractive.gamemode.metainfo.xml
+etc/security/limits.d/10-gamemode.conf
+usr/libexec/cpucorectl
+usr/libexec/procsysctl

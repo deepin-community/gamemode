@@ -1,4 +1,6 @@
-Copyright (c) 2017-2024, Feral Interactive
+/*
+
+Copyright (c) 2017-2019, Feral Interactive
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -24,3 +26,26 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+ */
+
+#pragma once
+
+#define _GNU_SOURCE
+
+#include <sched.h>
+#include <stdlib.h>
+
+#define IS_CPU_PARK 0
+#define IS_CPU_PIN 1
+
+/* Storage for CPU info*/
+struct GameModeCPUInfo {
+	size_t num_cpu;
+	int park_or_pin;
+	cpu_set_t *online;
+	cpu_set_t *to_keep;
+};
+
+/* parses a list of cpu cores in the format "a,b-c,d-e,f" */
+char *parse_cpulist(char *cpulist, long *from, long *to);

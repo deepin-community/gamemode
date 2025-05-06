@@ -3,17 +3,17 @@ Section: games
 Priority: optional
 Maintainer: Debian Games Team <pkg-games-devel@lists.alioth.debian.org>
 Uploaders: Jonathan Carter <jcc@debian.org>,
-           Stephan Lachnit <stephanlachnit@protonmail.com>,
+           Stephan Lachnit <stephanlachnit@debian.org>,
 Build-Depends: debhelper-compat (= 13),
-               libdbus-1-dev,
                libinih-dev,
+	       libdbus-1-dev,
                libsystemd-dev,
                meson,
                ninja-build,
-               pkg-config,
-               systemd,
+               pkgconf,
+               systemd-dev,
 Rules-Requires-Root: no
-Standards-Version: 4.5.1
+Standards-Version: 4.7.0
 Homepage: https://github.com/FeralInteractive/gamemode
 Vcs-Git: https://salsa.debian.org/games-team/gamemode.git
 Vcs-Browser: https://salsa.debian.org/games-team/gamemode
@@ -63,6 +63,7 @@ Breaks: gamemode (<< 1.5.1-3),
         libgamemode0 (<< 1.5.1-3),
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+         pkexec,
 Description: Optimise Linux system performance on demand (daemon)
  GameMode is a daemon/lib combo for Linux that allows games to request a set
  of optimisations be temporarily applied to the host OS.

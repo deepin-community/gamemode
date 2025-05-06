@@ -1,6 +1,80 @@
+## 1.8.2
+
+### Changes
+
+* Fix idle inhibitor closing bus connection too early (#466)
+* Fix hybrid CPU core pinning (#455)
+* Fix unreadable process maps in gamemodelist (#463)
+* Fixed crash if dbus is not accesible (#458)
+* Various bugfixes and improvements to documentation
+
+### Contributors
+
+* @notpeelz
+* @patatahooligan
+* Reilly Brogan @ReillyBrogan
+* Alexandru Ionut Tripon @Trial97
+* Kostadin @kostadinsh
+* Daniel Martinez @Calandracas606
+
+[View the full list of contributors](https://github.com/FeralInteractive/gamemode/graphs/contributors?from=2023-12-13&to=2024-08-19&type=c)
+
+## 1.8.1
+
+### Changes
+
+* Fix polkit parse error (#449)
+
+### Contributors
+
+* @Vam-Jam
+
+[View the full list of contributors](https://github.com/FeralInteractive/gamemode/graphs/contributors?from=2022-07-22&to=2023-12-12&type=c)
+
+## 1.8
+
+### Changes
+
+* Add CPU core pinning and parking capability (#416)
+* Allow disabling the Linux kernel split lock mitigation (#446)
+* Fix building when pidfd_open is available (Fixes build with glibc 2.36) (#379)
+* Unify privileged group configuration between pam, systemd, & polkit (#375)
+* Various other bugfixes and improved default configuration
+
+### Contributors
+
+* Henrik Holst @HenrikHolst
+* Kira Bruneau @kira-bruneau
+* James Le Cuirot @chewi
+* Hugo Locurcio @Calinou
+* Zoltán Nyikos @nyz93
+* @ashuntu
+* @szymon-gniado
+
+[View the full list of contributors](https://github.com/FeralInteractive/gamemode/graphs/contributors?from=2022-07-22&to=2023-12-06&type=c)
+
+## 1.7
+
+### Changes
+
+* Added new utility: `gamemodelist` (#346)
+* Run executables from `PATH` instead of `/usr/bin` (#323)
+* Add a trivial `gamemode.conf` file, which creates the gamemode group (#339)
+* Various minor bugfixes and updates to documentation
+
+### Contributors
+
+* Sam Gleske @samrocketman
+* Kira Bruneau @kira-bruneau
+* Stephan Lachnit @stephanlachnit
+* Emil Velikov @evelikov-work
+
+[View the full list of contributors](https://github.com/FeralInteractive/gamemode/graphs/contributors?from=2021-02-19&to=2022-07-21&type=c)
+
 ## 1.6.1
 
 ### Changes
+
 * Use inih r53
 * Packaging changes for Arch
 * Minor metainfo improvements
@@ -13,6 +87,7 @@
 ## 1.6
 
 ### Changes
+
 * Created new manpages for `gamemoderun` and the example, now called `gamemode-simulate-game`
 * Add ability to change lib directory of `gamemoderun`
 * Add option to use `elogind`
@@ -53,7 +128,7 @@ Minor changes for Debian and Ubuntu packaging:
 
 * Alex Smith @aejsmith
 * Christian Kellner @gicmo
-* Jason Ekstrand @jekstrand
+* Faith Ekstrand @gfxstrand
 
 ## 1.4
 

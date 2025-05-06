@@ -2,7 +2,7 @@ project(
     'gamemode',
     'c',
     default_options : ['c_std=c11', 'warning_level=3'],
-    version: '1.6.1',
+    version: '1.8.1',
     license: 'BSD',
 )
 
@@ -102,28 +102,41 @@ dep_threads = dependency('threads')
 # On non glibc systems this might be a stub, i.e. for musl
 libdl = cc.find_library('dl', required: false)
 
+with_privileged_group = get_option('with-privileged-group')
+
 # Determine the location for the systemd unit
 if sd_bus_provider == 'systemd'
-    # If the path isn't explicitly set, ask systemd for the systemd user unit directory
-    path_systemd_unit_dir = get_option('with-systemd-user-unit-dir')
-    if path_systemd_unit_dir == ''
-        message('Asking pkg-config for systemd\'s directories')
-        pkgconfig_systemd = dependency('systemd')
-        path_systemd_unit_dir = pkgconfig_systemd.get_pkgconfig_variable('systemduserunitdir')
+    with_systemd_unit = get_option('with-systemd-user-unit')
+    if with_systemd_unit
+        path_systemd_unit_dir = get_option('with-systemd-user-unit-dir')
+        if path_systemd_unit_dir == ''
+            message('Asking pkg-config for systemd\'s \'systemduserunitdir\' directory')
+            pkgconfig_systemd = dependency('systemd')
+            path_systemd_unit_dir = pkgconfig_systemd.get_pkgconfig_variable('systemduserunitdir')
+        endif
+    endif
+    if with_privileged_group != ''
+      with_systemd_group = get_option('with-systemd-group')
+      if with_systemd_group
+          path_systemd_group_dir = get_option('with-systemd-group-dir')
+          if path_systemd_group_dir == ''
+              message('Asking pkg-config for systemd\'s \'sysusersdir\' directory')
+              pkgconfig_systemd = dependency('systemd')
+              path_systemd_group_dir = pkgconfig_systemd.get_pkgconfig_variable('sysusersdir')
+          endif
+      endif
+    else
+      with_systemd_group = false
     endif
 endif
 
-with_limits_conf = get_option('with-pam-group')
-if with_limits_conf != ''
-  ldata = configuration_data()
-  ldata.set('LIMITSGROUP', with_limits_conf)
-  # Install the limits.d configuration file
-  configure_file(
-      input: 'data/10-gamemode.conf.in',
-      output: '10-gamemode.conf',
-      configuration: ldata,
-      install_dir: '/etc/security/limits.d',
-  )
+if with_privileged_group != ''
+  with_pam_renicing = get_option('with-pam-renicing')
+  if with_pam_renicing
+    path_pam_limits_dir = get_option('with-pam-limits-dir')
+  endif
+else
+  with_pam_renicing = false
 endif
 
 # Set the dbus path as appropriate.
@@ -132,7 +145,9 @@ if path_dbus_service_dir == ''
   path_dbus_service_dir = join_paths(path_datadir, 'dbus-1', 'services')
 endif
 
-path_polkit_action_dir = join_paths(path_datadir, 'polkit-1', 'actions')
+path_polkit_dir = join_paths(path_datadir, 'polkit-1')
+path_polkit_action_dir = join_paths(path_polkit_dir, 'actions')
+path_polkit_rule_dir = join_paths(path_polkit_dir, 'rules.d')
 
 with_examples = get_option('with-examples')
 with_util = get_option('with-util')
@@ -142,6 +157,7 @@ pidfd_open = cc.has_function('pidfd_open', args: '-D_GNU_SOURCE')
 
 cdata = configuration_data()
 cdata.set_quoted('LIBEXECDIR', path_libexecdir)
+cdata.set_quoted('SYSCONFDIR', path_sysconfdir)
 cdata.set_quoted('GAMEMODE_VERSION', meson.project_version())
 cdata.set10('HAVE_FN_PIDFD_OPEN', pidfd_open)
 
@@ -196,10 +212,22 @@ report = [
     '    includedir:                             @0@'.format(path_includedir),
 ]
 
+if with_pam_renicing
+report += [
+    '    PAM limits.d directory:                 @0@'.format(path_pam_limits_dir),
+]
+endif
 if sd_bus_provider == 'systemd'
+if with_systemd_unit
 report += [
     '    systemd user unit directory:            @0@'.format(path_systemd_unit_dir),
 ]
+endif
+if with_systemd_group
+report += [
+    '    systemd group directory:                @0@'.format(path_systemd_group_dir),
+]
+endif
 endif
 report += [
     '    D-BUS service directory:                @0@'.format(path_dbus_service_dir),

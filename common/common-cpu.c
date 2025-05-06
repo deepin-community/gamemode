@@ -1,4 +1,6 @@
-Copyright (c) 2017-2024, Feral Interactive
+/*
+
+Copyright (c) 2017-2019, Feral Interactive
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -24,3 +26,46 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+ */
+
+#include "common-cpu.h"
+#include "common-logging.h"
+
+char *parse_cpulist(char *cpulist, long *from, long *to)
+{
+	if (!cpulist || *cpulist == '\0')
+		return NULL;
+
+	char *endp;
+	*from = strtol(cpulist, &endp, 10);
+
+	if (endp == cpulist)
+		return NULL;
+
+	if (*endp == '\0' || *endp == ',') {
+		*to = *from;
+
+		if (*endp == '\0')
+			return endp;
+
+		return endp + 1;
+	}
+
+	if (*endp != '-')
+		return NULL;
+
+	cpulist = endp + 1;
+	*to = strtol(cpulist, &endp, 10);
+
+	if (endp == cpulist)
+		return NULL;
+
+	if (*to < *from)
+		return NULL;
+
+	if (*endp == '\0')
+		return endp;
+
+	return endp + 1;
+}

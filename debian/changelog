@@ -1,3 +1,63 @@
+gamemode (1.8.2-2) unstable; urgency=medium
+
+  * Team Upload
+  * Use canoncical email address for Games Team
+  * Replace obsolete pkg-config dep with pkgconf
+
+ -- Alexandre Detiste <tchet@debian.org>  Sun, 09 Feb 2025 13:27:21 +0100
+
+gamemode (1.8.2-1) unstable; urgency=medium
+
+  * New upstream releas
+  * Update copyright years
+  * Update standards version to 4.7.0
+
+ -- Jonathan Carter <jcc@debian.org>  Wed, 21 Aug 2024 09:59:41 +0200
+
+gamemode (1.8.1-2) unstable; urgency=medium
+
+  * Replace systemd build-dependency with systemd-dev (Closes: #1060508)
+
+ -- Jonathan Carter <jcc@debian.org>  Thu, 25 Jan 2024 17:49:19 +0200
+
+gamemode (1.8.1-1) unstable; urgency=medium
+
+  * New upstream release
+  * Remove debian/patches (no longer needed)
+  * Remove libgamemodeauto.a from debian/install (no longer available)
+  * Add new files to gamemode.install:
+    - etc/security/limits.d/10-gamemode.conf
+    - usr/libexec/cpucorectl
+    - usr/libexec/procsysctl
+
+ -- Jonathan Carter <jcc@debian.org>  Thu, 14 Dec 2023 15:34:50 +0200
+
+gamemode (1.7-3) unstable; urgency=medium
+
+  [ Safir Secerovic ]
+  * Add pkexec to gamemode-daemon dependencies
+
+ -- Stephan Lachnit <stephanlachnit@debian.org>  Wed, 09 Aug 2023 18:00:51 +0200
+
+gamemode (1.7-2) unstable; urgency=medium
+
+  * Team upload
+
+  [ Jeremy Bicha ]
+  * Cherry-pick patch to fix build with glibc 2.36
+
+  [ Debian Janitor ]
+  * Fix day-of-week for changelog entry 1.3.1-1.
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Wed, 21 Sep 2022 11:59:36 -0400
+
+gamemode (1.7-1) unstable; urgency=medium
+
+  * New upstream version 1.7
+  * Update standards version to 4.6.1, no changes needed
+
+ -- Stephan Lachnit <stephanlachnit@debian.org>  Thu, 21 Jul 2022 19:13:21 +0200
+
 gamemode (1.6.1-1) unstable; urgency=medium
 
   * New upstream version 1.6.1
@@ -180,7 +240,7 @@ gamemode (1.3.1-1) experimental; urgency=medium
   * Update standards version to 4.3.0
   * Upgrade to debhelper-compat (= 12)
 
- -- Jonathan Carter <jcc@debian.org>  Thu, 05 Apr 2019 16:56:49 +0200
+ -- Jonathan Carter <jcc@debian.org>  Fri, 05 Apr 2019 16:56:49 +0200
 
 gamemode (1.2-6) unstable; urgency=medium
 

@@ -107,6 +107,7 @@ float config_get_igpu_power_threshold(GameModeConfig *self);
 void config_get_soft_realtime(GameModeConfig *self, char softrealtime[CONFIG_VALUE_MAX]);
 long config_get_renice_value(GameModeConfig *self);
 long config_get_ioprio_value(GameModeConfig *self);
+bool config_get_disable_splitlock(GameModeConfig *self);
 
 /*
  * Get various config info for gpu optimisations
@@ -117,6 +118,12 @@ long config_get_nv_core_clock_mhz_offset(GameModeConfig *self);
 long config_get_nv_mem_clock_mhz_offset(GameModeConfig *self);
 long config_get_nv_powermizer_mode(GameModeConfig *self);
 void config_get_amd_performance_level(GameModeConfig *self, char value[CONFIG_VALUE_MAX]);
+
+/*
+ * Get various config info for cpu optimisations
+ */
+void config_get_cpu_park_cores(GameModeConfig *self, char value[CONFIG_VALUE_MAX]);
+void config_get_cpu_pin_cores(GameModeConfig *self, char value[CONFIG_VALUE_MAX]);
 
 /**
  * Functions to get supervisor config permissions

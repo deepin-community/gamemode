@@ -35,10 +35,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "common-helpers.h"
 #include "common-logging.h"
 
+#include "build-config.h"
+
 /* Ben Hoyt's inih library */
 #include <ini.h>
 
 #include <dirent.h>
+#include <libgen.h>
 #include <math.h>
 #include <pthread.h>
 #include <pwd.h>
@@ -95,6 +98,8 @@ struct GameModeConfig {
 
 		long inhibit_screensaver;
 
+		long disable_splitlock;
+
 		long reaper_frequency;
 
 		char apply_gpu_optimisations[CONFIG_VALUE_MAX];
@@ -103,6 +108,9 @@ struct GameModeConfig {
 		long nv_mem_clock_mhz_offset;
 		long nv_powermizer_mode;
 		char amd_performance_level[CONFIG_VALUE_MAX];
+
+		char cpu_park_cores[CONFIG_VALUE_MAX];
+		char cpu_pin_cores[CONFIG_VALUE_MAX];
 
 		long require_supervisor;
 		char supervisor_whitelist[CONFIG_LIST_MAX][CONFIG_VALUE_MAX];
@@ -269,6 +277,8 @@ static int inih_handler(void *user, const char *section, const char *name, const
 			valid = get_string_value(value, self->values.ioprio);
 		} else if (strcmp(name, "inhibit_screensaver") == 0) {
 			valid = get_long_value(name, value, &self->values.inhibit_screensaver);
+		} else if (strcmp(name, "disable_splitlock") == 0) {
+			valid = get_long_value(name, value, &self->values.disable_splitlock);
 		}
 	} else if (strcmp(section, "gpu") == 0) {
 		/* Protect the user - don't allow these config options from unsafe config locations */
@@ -277,9 +287,7 @@ static int inih_handler(void *user, const char *section, const char *name, const
 			    "The [gpu] config section is not configurable from unsafe config files! Option %s "
 			    "will be ignored!\n",
 			    name);
-			LOG_ERROR(
-			    "Consider moving this option to /etc/gamemode.ini or "
-			    "/usr/share/gamemode/gamemode.ini\n");
+			LOG_ERROR("Consider moving this option to /etc/gamemode.ini\n");
 		}
 
 		/* GPU subsection */
@@ -295,6 +303,12 @@ static int inih_handler(void *user, const char *section, const char *name, const
 			valid = get_long_value(name, value, &self->values.nv_powermizer_mode);
 		} else if (strcmp(name, "amd_performance_level") == 0) {
 			valid = get_string_value(value, self->values.amd_performance_level);
+		}
+	} else if (strcmp(section, "cpu") == 0) {
+		if (strcmp(name, "park_cores") == 0) {
+			valid = get_string_value(value, self->values.cpu_park_cores);
+		} else if (strcmp(name, "pin_cores") == 0) {
+			valid = get_string_value(value, self->values.cpu_pin_cores);
 		}
 	} else if (strcmp(section, "supervisor") == 0) {
 		/* Supervisor subsection */
@@ -362,8 +376,9 @@ static void load_config_files(GameModeConfig *self)
 	/* Set some non-zero defaults */
 	self->values.igpu_power_threshold = DEFAULT_IGPU_POWER_THRESHOLD;
 	self->values.inhibit_screensaver = 1; /* Defaults to on */
+	self->values.disable_splitlock = 1;   /* Defaults to on */
 	self->values.reaper_frequency = DEFAULT_REAPER_FREQ;
-	self->values.gpu_device = -1; /* 0 is a valid device ID so use -1 to indicate no value */
+	self->values.gpu_device = 0;
 	self->values.nv_powermizer_mode = -1;
 	self->values.nv_core_clock_mhz_offset = -1;
 	self->values.nv_mem_clock_mhz_offset = -1;
@@ -378,7 +393,7 @@ static void load_config_files(GameModeConfig *self)
 		bool protected;
 	};
 	struct ConfigLocation locations[CONFIG_NUM_LOCATIONS] = {
-		{ "/usr/share/gamemode", true }, /* shipped default config */
+		{ SYSCONFDIR, true },            /* shipped default config */
 		{ "/etc", true },                /* administrator config */
 		{ config_location_home, false }, /* $XDG_CONFIG_HOME or $HOME/.config/ */
 		{ config_location_local, false } /* local data eg. $PWD */
@@ -632,6 +647,16 @@ bool config_get_inhibit_screensaver(GameModeConfig *self)
 }
 
 /*
+ * Gets the disable splitlock setting
+ */
+bool config_get_disable_splitlock(GameModeConfig *self)
+{
+	long val;
+	memcpy_locked_config(self, &val, &self->values.disable_splitlock, sizeof(long));
+	return val == 1;
+}
+
+/*
  * Get a set of scripts to call when gamemode starts
  */
 void config_get_gamemode_start_scripts(GameModeConfig *self,
@@ -793,6 +818,25 @@ void config_get_amd_performance_level(GameModeConfig *self, char value[CONFIG_VA
         char supervisor_blacklist[CONFIG_LIST_MAX][CONFIG_VALUE_MAX];
 */
 DEFINE_CONFIG_GET(require_supervisor)
+
+/*
+ * Get various config info for cpu optimisations
+ */
+void config_get_cpu_park_cores(GameModeConfig *self, char value[CONFIG_VALUE_MAX])
+{
+	memcpy_locked_config(self,
+	                     value,
+	                     &self->values.cpu_park_cores,
+	                     sizeof(self->values.cpu_park_cores));
+}
+
+void config_get_cpu_pin_cores(GameModeConfig *self, char value[CONFIG_VALUE_MAX])
+{
+	memcpy_locked_config(self,
+	                     value,
+	                     &self->values.cpu_pin_cores,
+	                     sizeof(self->values.cpu_pin_cores));
+}
 
 /*
  * Checks if the supervisor is whitelisted
