@@ -203,10 +203,25 @@ void game_mode_free_gpu(GameModeGPUInfo **info);
 int game_mode_apply_gpu(const GameModeGPUInfo *info);
 int game_mode_get_gpu(GameModeGPUInfo *info);
 
+/** gamemode-cpu.c
+ * Provides internal functions to apply optimisations to cpus
+ */
+typedef struct GameModeCPUInfo GameModeCPUInfo;
+int game_mode_initialise_cpu(GameModeConfig *config, GameModeCPUInfo **info);
+void game_mode_free_cpu(GameModeCPUInfo **info);
+void game_mode_reconfig_cpu(GameModeConfig *config, GameModeCPUInfo **info);
+int game_mode_park_cpu(const GameModeCPUInfo *info);
+int game_mode_unpark_cpu(const GameModeCPUInfo *info);
+void game_mode_apply_core_pinning(const GameModeCPUInfo *info, const pid_t client,
+                                  const bool be_silent);
+void game_mode_undo_core_pinning(const GameModeCPUInfo *info, const pid_t client);
+
 /** gamemode-dbus.c
  * Provides an API interface for using dbus
  */
+typedef struct GameModeIdleInhibitor GameModeIdleInhibitor;
 void game_mode_context_loop(GameModeContext *context) __attribute__((noreturn));
-int game_mode_inhibit_screensaver(bool inhibit);
+GameModeIdleInhibitor *game_mode_create_idle_inhibitor(void);
+void game_mode_destroy_idle_inhibitor(GameModeIdleInhibitor *inhibitor);
 void game_mode_client_registered(pid_t);
 void game_mode_client_unregistered(pid_t);

@@ -45,6 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -84,9 +85,15 @@ struct GameModeContext {
 	struct GameModeGPUInfo *stored_gpu; /**<Stored GPU info for the current GPU */
 	struct GameModeGPUInfo *target_gpu; /**<Target GPU info for the current GPU */
 
+	struct GameModeCPUInfo *cpu; /**<Stored CPU info for the current CPU */
+
+	GameModeIdleInhibitor *idle_inhibitor;
+
 	bool igpu_optimization_enabled;
 	uint32_t last_cpu_energy_uj;
 	uint32_t last_igpu_energy_uj;
+
+	long initial_split_lock_mitigate;
 
 	/* Reaper control */
 	struct {
@@ -111,6 +118,7 @@ static void game_mode_context_enter(GameModeContext *self);
 static void game_mode_context_leave(GameModeContext *self);
 static char *game_mode_context_find_exe(pid_t pid);
 static void game_mode_execute_scripts(char scripts[CONFIG_LIST_MAX][CONFIG_VALUE_MAX], int timeout);
+static int game_mode_disable_splitlock(GameModeContext *self, bool disable);
 
 static void start_reaper_thread(GameModeContext *self)
 {
@@ -144,6 +152,11 @@ void game_mode_context_init(GameModeContext *self)
 	/* Initialise the current GPU info */
 	game_mode_initialise_gpu(self->config, &self->stored_gpu);
 	game_mode_initialise_gpu(self->config, &self->target_gpu);
+
+	/* Initialise the current CPU info */
+	game_mode_initialise_cpu(self->config, &self->cpu);
+
+	self->initial_split_lock_mitigate = -1;
 
 	pthread_rwlock_init(&self->rwlock, NULL);
 
@@ -187,10 +200,65 @@ void game_mode_context_destroy(GameModeContext *self)
 	game_mode_free_gpu(&self->stored_gpu);
 	game_mode_free_gpu(&self->target_gpu);
 
+	/* Destroy the cpu object */
+	game_mode_free_cpu(&self->cpu);
+
 	/* Destroy the config object */
 	config_destroy(self->config);
 
 	pthread_rwlock_destroy(&self->rwlock);
+}
+
+static int game_mode_disable_splitlock(GameModeContext *self, bool disable)
+{
+	if (!config_get_disable_splitlock(self->config))
+		return 0;
+
+	long value_num = self->initial_split_lock_mitigate;
+	char value_str[40];
+
+	if (disable) {
+		FILE *f = fopen("/proc/sys/kernel/split_lock_mitigate", "r");
+		if (f == NULL) {
+			if (errno == ENOENT)
+				return 0;
+
+			LOG_ERROR("Couldn't open /proc/sys/kernel/split_lock_mitigate : %s\n", strerror(errno));
+			return 1;
+		}
+
+		if (fgets(value_str, sizeof value_str, f) == NULL) {
+			LOG_ERROR("Couldn't read from /proc/sys/kernel/split_lock_mitigate : %s\n",
+			          strerror(errno));
+			fclose(f);
+			return 1;
+		}
+
+		self->initial_split_lock_mitigate = strtol(value_str, NULL, 10);
+		fclose(f);
+
+		value_num = 0;
+		if (self->initial_split_lock_mitigate == value_num)
+			return 0;
+	}
+
+	if (value_num == -1)
+		return 0;
+
+	sprintf(value_str, "%ld", value_num);
+
+	const char *const exec_args[] = {
+		"pkexec", LIBEXECDIR "/procsysctl", "split_lock_mitigate", value_str, NULL,
+	};
+
+	LOG_MSG("Requesting update of split_lock_mitigate to %s\n", value_str);
+	int ret = run_external_process(exec_args, NULL, -1);
+	if (ret != 0) {
+		LOG_ERROR("Failed to update split_lock_mitigate\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int game_mode_set_governor(GameModeContext *self, enum GameModeGovernor gov)
@@ -235,7 +303,7 @@ static int game_mode_set_governor(GameModeContext *self, enum GameModeGovernor g
 	}
 
 	const char *const exec_args[] = {
-		"/usr/bin/pkexec", LIBEXECDIR "/cpugovctl", "set", gov_str, NULL,
+		"pkexec", LIBEXECDIR "/cpugovctl", "set", gov_str, NULL,
 	};
 
 	LOG_MSG("Requesting update of governor policy to %s\n", gov_str);
@@ -357,12 +425,18 @@ static void game_mode_context_enter(GameModeContext *self)
 	}
 
 	/* Inhibit the screensaver */
-	if (config_get_inhibit_screensaver(self->config))
-		game_mode_inhibit_screensaver(true);
+	if (config_get_inhibit_screensaver(self->config)) {
+		game_mode_destroy_idle_inhibitor(self->idle_inhibitor);
+		self->idle_inhibitor = game_mode_create_idle_inhibitor();
+	}
+
+	game_mode_disable_splitlock(self, true);
 
 	/* Apply GPU optimisations by first getting the current values, and then setting the target */
 	game_mode_get_gpu(self->stored_gpu);
 	game_mode_apply_gpu(self->target_gpu);
+
+	game_mode_park_cpu(self->cpu);
 
 	/* Run custom scripts last - ensures the above are applied first and these scripts can react to
 	 * them if needed */
@@ -387,9 +461,15 @@ static void game_mode_context_leave(GameModeContext *self)
 	/* Remove GPU optimisations */
 	game_mode_apply_gpu(self->stored_gpu);
 
+	game_mode_unpark_cpu(self->cpu);
+
 	/* UnInhibit the screensaver */
-	if (config_get_inhibit_screensaver(self->config))
-		game_mode_inhibit_screensaver(false);
+	if (config_get_inhibit_screensaver(self->config)) {
+		game_mode_destroy_idle_inhibitor(self->idle_inhibitor);
+		self->idle_inhibitor = NULL;
+	}
+
+	game_mode_disable_splitlock(self, false);
 
 	game_mode_set_governor(self, GAME_MODE_GOVERNOR_DEFAULT);
 
@@ -521,6 +601,9 @@ static int game_mode_apply_client_optimisations(GameModeContext *self, pid_t cli
 	/* Apply scheduler policies */
 	game_mode_apply_scheduling(self, client);
 
+	/* Apply core pinning */
+	game_mode_apply_core_pinning(self->cpu, client, false);
+
 	return 0;
 }
 
@@ -633,6 +716,8 @@ static int game_mode_remove_client_optimisations(GameModeContext *self, pid_t cl
 	/* Restore the renice value for the process, expecting it to be our config value */
 	game_mode_apply_renice(self, client, (int)config_get_renice_value(self->config));
 
+	/* Restore the process affinity to all online cores */
+	game_mode_undo_core_pinning(self->cpu, client);
 	return 0;
 }
 
@@ -870,6 +955,16 @@ uint64_t game_mode_client_get_timestamp(GameModeClient *client)
 	return (uint64_t)client->timestamp;
 }
 
+static void game_mode_reapply_core_pinning_internal(GameModeContext *self)
+{
+	pthread_rwlock_wrlock(&self->rwlock);
+	if (game_mode_context_num_clients(self)) {
+		for (GameModeClient *cl = self->client; cl; cl = cl->next)
+			game_mode_apply_core_pinning(self->cpu, cl->pid, true);
+	}
+	pthread_rwlock_unlock(&self->rwlock);
+}
+
 /* Internal refresh config function (assumes no contention with reaper thread) */
 static void game_mode_reload_config_internal(GameModeContext *self)
 {
@@ -888,6 +983,7 @@ static void game_mode_reload_config_internal(GameModeContext *self)
 
 	/* Reload the config */
 	config_reload(self->config);
+	game_mode_reconfig_cpu(self->config, &self->cpu);
 
 	/* Re-apply all current optimisations */
 	if (game_mode_context_num_clients(self)) {
@@ -932,6 +1028,9 @@ static void *game_mode_context_reaper(void *userdata)
 
 		/* Expire remaining entries */
 		game_mode_context_auto_expire(self);
+
+		/* Re apply the thread affinity mask (aka core pinning) */
+		game_mode_reapply_core_pinning_internal(self);
 
 		/* Check if we should be reloading the config, and do so if needed */
 		if (config_needs_reload(self->config)) {

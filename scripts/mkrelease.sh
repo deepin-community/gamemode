@@ -12,8 +12,8 @@ VERSION=$(git describe --tags --dirty)
 git archive HEAD --format=tar --prefix=${NAME}-${VERSION}/ --output=${NAME}-${VERSION}.tar
 # get code from subprojects
 meson subprojects download
-meson subprojects update
-tar -rf ${NAME}-${VERSION}.tar --exclude-vcs --transform="s,^subprojects,${NAME}-$VERSION/subprojects," subprojects/inih-r53/
+meson subprojects update --reset
+tar -rf ${NAME}-${VERSION}.tar --exclude-vcs --transform="s,^subprojects,${NAME}-$VERSION/subprojects," subprojects/inih-r54/
 # compress archive
 xz -9 "${NAME}-${VERSION}.tar"
 

@@ -10,6 +10,7 @@ Currently GameMode includes support for optimisations including:
 * Kernel scheduler (`SCHED_ISO`)
 * Screensaver inhibiting
 * GPU performance mode (NVIDIA and AMD), GPU overclocking (NVIDIA)
+* CPU core pinning or parking
 * Custom scripts
 
 GameMode packages are available for Ubuntu, Debian, Solus, Arch, Gentoo, Fedora, OpenSUSE, Mageia and possibly more.
@@ -41,18 +42,19 @@ LD_PRELOAD="$LD_PRELOAD:/usr/\$LIB/libgamemodeauto.so.0"
 
 The daemon is configured with a `gamemode.ini` file. [example/gamemode.ini](https://github.com/FeralInteractive/gamemode/blob/master/example/gamemode.ini) is an example of what this file would look like, with explanations for all the variables.
 
-Config files are loaded and merged from the following directories, in order:
-1. `/usr/share/gamemode/`
-2. `/etc/`
-3. `$XDG_CONFIG_HOME` or `$HOME/.config/`
-4. `$PWD`
+Configuration files are loaded and merged from the following directories, from highest to lowest priority:
+
+1. `$PWD` ("unsafe" - **`[gpu]` settings take no effect in this file**)
+2. `$XDG_CONFIG_HOME` or `$HOME/.config/` ("unsafe" - **`[gpu]` settings take no effect in this file**)
+3. `/etc/`
+4. `/usr/share/gamemode/`
 
 ---
 ## Note for Hybrid GPU users
 
 It's not possible to integrate commands like optirun automatically inside GameMode, since the GameMode request is made once the game has already started. However it is possible to use a hybrid GPU wrapper like optirun by starting the game with `gamemoderun`.
 
-You can do this by setting the environment variable `GAMEMODERUNEXEC` to your wrapper's launch command, so for example `GAMEMODERUNEXEC=optirun`, `GAMEMODERUNEXEC="env DRI_PRIME=1"`, or `GAMEMODERUNEXEC="env __NV_PRIME_RENDER_OFFLOAD=1 env __GLX_VENDOR_LIBRARY_NAME=nvidia env __VK_LAYER_NV_optimus=NVIDIA_only"`. This environment variable can be set globally (e.g. in /etc/environment), so that the same prefix command does not have to be duplicated everywhere you want to use `gamemoderun`.
+You can do this by setting the environment variable `GAMEMODERUNEXEC` to your wrapper's launch command, so for example `GAMEMODERUNEXEC=optirun`, `GAMEMODERUNEXEC="env DRI_PRIME=1"`, or `GAMEMODERUNEXEC="env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only"`. This environment variable can be set globally (e.g. in /etc/environment), so that the same prefix command does not have to be duplicated everywhere you want to use `gamemoderun`.
 
 GameMode will not be injected to the wrapper.
 
@@ -65,17 +67,23 @@ The following games are known to integrate GameMode support (meaning they don't 
 * Rise of the Tomb Raider
 * Shadow of the Tomb Raider
 * Total War Saga: Thrones of Britannia
+* Total War: ROME REMASTERED
 * Total War: Three Kingdoms
 * Total War: WARHAMMER II
+* Total War: WARHAMMER III
 
 ### Others
 Other apps which can integrate with GameMode include:
 * [ATLauncher](https://atlauncher.com/downloads) Minecraft launcher
-* GNOME Shell ([via extension](https://github.com/gicmo/gamemode-extension)) - indicates when GameMode is active in the top panel.
-* Lutris - Enables GameMode for all games by default if available (must have both 32- and 64-bit GameMode libraries installed), configurable in preferences.
-
+* [Cemu](https://cemu.info/) Wii U emulator
+* [GNOME Shell Extension](https://github.com/trsnaqe/gamemode-shell-extension) GameMode status indicator extension for GNOME Shell
+* [Lutris](https://lutris.net/) Install and play any video game easily
+  * Enables GameMode for all games by default if available (must have both 32- and 64-bit GameMode libraries installed), configurable in preferences.
+* [Prism Launcher](https://prismlauncher.org/) Minecraft launcher
+* [RetroArch](https://www.retroarch.com) Frontend for emulators, game engines and media players
+* [Vinegar](https://vinegarhq.org/) Roblox Player/Studio bootstrapper
 ---
-## Development [![Build Status](https://travis-ci.org/FeralInteractive/gamemode.svg?branch=master)](https://travis-ci.org/FeralInteractive/gamemode)
+## Development [![Build and test](https://github.com/FeralInteractive/gamemode/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/FeralInteractive/gamemode/actions/workflows/build-and-test.yml)
 
 The design of GameMode has a clear-cut abstraction between the host daemon and library (`gamemoded` and `libgamemode`), and the client loaders (`libgamemodeauto` and `gamemode_client.h`) that allows for safe use without worrying about whether the daemon is installed or running. This design also means that while the host library currently relies on `systemd` for exchanging messages with the daemon, it's entirely possible to implement other internals that still work with the same clients.
 
@@ -85,9 +93,26 @@ See repository subdirectories for information on each component.
 GameMode depends on `meson` for building and `systemd` for internal communication. This repo contains a `bootstrap.sh` script to allow for quick install to the user bus, but check `meson_options.txt` for custom settings.
 
 #### Ubuntu/Debian (you may also need `dbus-user-session`)
+
 ```bash
-apt install meson libsystemd-dev pkg-config ninja-build git libdbus-1-dev libinih-dev
+apt install meson libsystemd-dev pkg-config ninja-build git libdbus-1-dev libinih-dev build-essential
 ```
+
+On Ubuntu 18.04, you'll need to install `python3` package and install the latest meson version from `pip`.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install meson
+```
+
+Later you can deactivate the virtual environment and remove it.
+
+```bash
+deactivate
+rm -rf .venv
+```
+
 #### Arch
 ```bash
 pacman -S meson systemd git dbus libinih
@@ -107,13 +132,17 @@ ACCEPT_KEYWORDS="**" emerge --ask ~games-util/gamemode-9999
 ```
 
 ### Build and Install GameMode
-Then clone, build and install a release version of GameMode at 1.6.1:
+Then clone, build and install a release version of GameMode at 1.8.2:
 
 ```bash
 git clone https://github.com/FeralInteractive/gamemode.git
 cd gamemode
-git checkout 1.6.1 # omit to build the master branch
+git checkout 1.8.2 # omit to build the master branch
 ./bootstrap.sh
+```
+To test GameMode installed and will run correctly:
+```bash
+gamemoded -t
 ```
 
 To uninstall:
@@ -136,7 +165,7 @@ See the [contributors](https://github.com/FeralInteractive/gamemode/graphs/contr
 ---
 ## License
 
-Copyright © 2017-2021 Feral Interactive
+Copyright © 2017-2024 Feral Interactive
 
 GameMode is available under the terms of the BSD 3-Clause License (Revised)
 
